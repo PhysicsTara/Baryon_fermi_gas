@@ -13,24 +13,18 @@ class particle:
         self.strangeness = strangeness
         self.degeneracy = 2 * self.spin + 1
         self.con = self.degeneracy / (6 * pow(math.pi, 2))
+    def k_f(self, fermi_energy):
+        return np.sqrt(np.power(fermi_energy, 2) - np.power(self.mass, 2))
     def number_density(self, fermi_energy):
-        k_f = np.sqrt(np.power(fermi_energy, 2) - pow(self.mass, 2))
-        return self.con * np.pow(k_f, 3)
+        return self.con * np.power(self.k_f(fermi_energy), 3)
     def pressure(self, fermi_energy):
-        k_f = np.sqrt(np.power(fermi_energy, 2) - pow(self.mass, 2))
-        return self.con * (
-                fermi_energy * (np.power(k_f, 3) / 4 - 3 * pow(self.mass, 2) * k_f / 8) + 3 * pow(self.mass, 4) * np.log(
-            (k_f + fermi_energy) / self.mass) / 8)
+        return self.con * (fermi_energy * (np.power(self.k_f(fermi_energy), 3) / 4 - 3 * np.power(self.mass, 2) * self.k_f(fermi_energy) / 8) + 3 * np.power(self.mass, 4) * np.log((self.k_f(fermi_energy) + fermi_energy) / self.mass) / 8)
     def energy_density(self, fermi_energy):
-        k_f = np.sqrt(np.power(fermi_energy, 2) - pow(self.mass, 2))
-        return 3 * self.con * (
-                    fermi_energy * (pow(self.mass, 2) * k_f / 8 + np.power(k_f, 3) / 4) - pow(self.mass, 4) * np.log((k_f + fermi_energy) / self.mass) / 8)
+        return 3 * self.con * (fermi_energy * (np.power(self.mass, 2) * self.k_f(fermi_energy) / 8 + np.power(self.k_f(fermi_energy), 3) / 4) - np.power(self.mass, 4) * np.log((self.k_f(fermi_energy) + fermi_energy) / self.mass) / 8)
     def dP(self, fermi_energy):
-        k_f = np.sqrt(np.power(fermi_energy, 2) - pow(self.mass, 2))
-        return self.con * (k_f * (4* np.power(fermi_energy, 2) - pow(self.mass, 2)))/ 4
+        return self.con * (self.k_f(fermi_energy) * (4* np.power(fermi_energy, 2) - pow(self.mass, 2)))/ 4
     def dE(self, fermi_energy):
-        k_f = np.sqrt(np.power(fermi_energy, 2) - pow(self.mass, 2))
-        return 3 * self.con * k_f * np.power(fermi_energy, 2)
+        return 3 * self.con * self.k_f(fermi_energy) * np.power(fermi_energy, 2)
 
 #declare particles in the class 'particle'
 #octet
@@ -54,7 +48,7 @@ sigma_star_minus = particle(1387200000, 1.5, -1, 1, -1)
 xi_1530_minus = particle(1535000000, 0.5, -1, 1, -2)
 xi_1530_0 = particle(1531800000, 0.5, 0, 1, -2)
 omega = particle(1672450000, 1.5, -1, 1 , -3)
-particles = [proton, neutron]
+particles = [proton, neutron, sigma_0, sigma_minus, sigma_plus, lambda_0, xi_minus, xi_0, delta_plusplus, delta_plus, delta_0, delta_minus, sigma_star_minus, sigma_star_0, sigma_star_plus, xi_1530_minus, xi_1530_0, omega]
 
 #system variables
 def pressure(mu_B, mu_Q, mu_S):
@@ -81,32 +75,30 @@ def n_B(mu_B, mu_Q, mu_S):
         mu = part.baryon_number * mu_B + part.charge * mu_Q + part.strangeness * mu_S
         n = n + part.number_density(mu) * part.baryon_number
     return n
-def dP(mu_B, mu_Q, mu_S):
-    dPi = 0
-    for part in particles:
-        mu = part.baryon_number * mu_B + part.charge * mu_Q + part.strangeness * mu_S
-        dPi = dPi + part.dP(mu)
-    return dPi
-def dE(mu_B, mu_Q, mu_S):
-    dU = 0
-    for part in particles:
-        mu = part.baryon_number * mu_B + part.charge * mu_Q + part.strangeness * mu_S
-        dU = dU + part.dE(mu)
-    return dU
 def cs2(mu_B, mu_Q, mu_S):
-    return dP(mu_B, mu_Q, mu_S)/dE(mu_B, mu_Q, mu_S)
-muB = np.linspace(neutron.mass, 1500000000, 100)
-muQ = 0
-muS = 0
+    c2 = 0
+    for part in particles:
+        mu = part.baryon_number * mu_B + part.charge * mu_Q + part.strangeness * mu_S
+        c2 = c2 + part.dP(mu)/part.dE(mu)
+    return c2
+muB = np.linspace(proton.mass, 3000000000, 100)
+muQ = -omega.mass/12 # np.linspace(-omega.mass, omega.mass, 100)
+muS = -omega.mass/3
+mB, mQ = np.meshgrid(muB, muQ)
 ax = plt.axes()
 ax.plot(1e-24*energy_density(muB, muQ, muS), 1e-24*pressure(muB, muQ, muS))
 ax.set_ylabel('Pressure(MeV^4)')
 ax.set_xlabel('Energy density(MeV^4)')
 plt.figure()
 ax2 = plt.axes()
-ax2.plot(1e-6*muB, cs2(muB, muQ, muS))
+ax2.plot(n_B(muB, muQ, muS)/(0.16*pow(386.2, 3)), cs2(muB, muQ, muS))
 ax2.set_ylabel('c_s^2')
-ax2.set_xlabel('mu_B(MeV)')
+ax2.set_xlabel('n_B/n_sat')
+#ax2 = fig.add_subplot(projection='3d')
+#ax2.plot_surface(1e-6*mB, 1e-6*mQ, cs2(mB, mQ, muS))
+#ax2.set_zlabel('c_s^2')
+#ax2.set_ylabel('mu_Q(MeV)')
+#ax2.set_xlabel('mu_B(MeV)')
 plt.figure()
 ax3 = plt.axes()
 ax3.plot(1e-6*muB, n_B(muB, muQ, muS)/pow(386.2, 3))
