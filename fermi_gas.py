@@ -76,11 +76,13 @@ def n_B(mu_B, mu_Q, mu_S):
         n = n + part.number_density(mu) * part.baryon_number
     return n
 def cs2(mu_B, mu_Q, mu_S):
-    c2 = 0
+    de = 0
+    dp = 0
     for part in particles:
         mu = part.baryon_number * mu_B + part.charge * mu_Q + part.strangeness * mu_S
-        c2 = c2 + part.dP(mu)/part.dE(mu)
-    return c2
+        dp = dp + (4 * np.power(mu, 2) - np.power(part.mass, 2))/(12 * part.baryon_number * mu)
+        de = de + mu/part.baryon_number
+    return dp/de
 muB = np.linspace(proton.mass, 3000000000, 100)
 muQ = -omega.mass/12 # np.linspace(-omega.mass, omega.mass, 100)
 muS = -omega.mass/3
