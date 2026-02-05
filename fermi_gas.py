@@ -2,6 +2,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 #all in natural units
 #particle class with attributes for each particle
 class particle:
@@ -25,6 +26,8 @@ class particle:
         return self.con * (self.k_f(fermi_energy) * (4* np.power(fermi_energy, 2) - pow(self.mass, 2)))/ 4
     def dE(self, fermi_energy):
         return 3 * self.con * self.k_f(fermi_energy) * np.power(fermi_energy, 2)
+    def d2P(self, fermi_energy):
+        return 3 * self.con * fermi_energy * (4* np.power(fermi_energy, 2) - 3*pow(self.mass, 2))/(4*self.k_f(fermi_energy))
 
 #declare particles in the class 'particle'
 #octet
@@ -45,8 +48,8 @@ delta_minus = particle(1232000000, 1.5, -1, 1, 0)
 sigma_star_plus = particle(1382800000, 1.5, 1, 1, -1)
 sigma_star_0 = particle(1383700000, 1.5, 0, 1, -1)
 sigma_star_minus = particle(1387200000, 1.5, -1, 1, -1)
-xi_1530_minus = particle(1535000000, 0.5, -1, 1, -2)
-xi_1530_0 = particle(1531800000, 0.5, 0, 1, -2)
+xi_1530_minus = particle(1535000000, 1.5, -1, 1, -2)
+xi_1530_0 = particle(1531800000, 1.5, 0, 1, -2)
 omega = particle(1672450000, 1.5, -1, 1 , -3)
 particles = [proton, neutron, sigma_0, sigma_minus, sigma_plus, lambda_0, xi_minus, xi_0, delta_plusplus, delta_plus, delta_0, delta_minus, sigma_star_minus, sigma_star_0, sigma_star_plus, xi_1530_minus, xi_1530_0, omega]
 
@@ -75,40 +78,49 @@ def n_B(mu_B, mu_Q, mu_S):
         mu = part.baryon_number * mu_B + part.charge * mu_Q + part.strangeness * mu_S
         n = n + part.number_density(mu) * part.baryon_number
     return n
-def cs2(mu_B, mu_Q, mu_S):
-    de = 0
-    dp = 0
+def X_BB(mu_B, mu_Q, mu_S):
+    n = 0
     for part in particles:
         mu = part.baryon_number * mu_B + part.charge * mu_Q + part.strangeness * mu_S
-        dp = dp + (4 * np.power(mu, 2) - np.power(part.mass, 2))/(12 * part.baryon_number * mu)
-        de = de + mu/part.baryon_number
-    return dp/de
-muB = np.linspace(proton.mass, 3000000000, 100)
-muQ = -omega.mass/12 # np.linspace(-omega.mass, omega.mass, 100)
-muS = -omega.mass/3
-mB, mQ = np.meshgrid(muB, muQ)
+        n = n + part.d2P(mu) * part.baryon_number * part.baryon_number
+    return n
+def X_SB(mu_B, mu_Q, mu_S):
+    n = 0
+    for part in particles: 
+        mu = part.baryon_number * mu_B + part.charge * mu_Q + part.strangeness * mu_S
+        n = n + part.d2P(mu) * part.strangeness * part.baryon_number
+    return n
+def X_QB(mu_B, mu_Q, mu_S):
+    n = 0
+    for part in particles:
+        mu = part.baryon_number * mu_B + part.charge * mu_Q + part.strangeness * mu_S
+        n = n + part.d2P(mu) * part.charge * part.baryon_number
+    return n
+
+muB = np.linspace(1000000000, 5000000000, 1000)
+muQ = 0 #np.linspace(-500000000, 0, 100)
+muS = np.linspace(-500000000, 2000000000, 1000)
+
+#print(X_BB(omega.mass, 0 , 0))
+
+# mB, mQ = np.meshgrid(muB, muQ)
 ax = plt.axes()
 ax.plot(1e-24*energy_density(muB, muQ, muS), 1e-24*pressure(muB, muQ, muS))
 ax.set_ylabel('Pressure(MeV^4)')
 ax.set_xlabel('Energy density(MeV^4)')
 plt.figure()
 ax2 = plt.axes()
-ax2.plot(n_B(muB, muQ, muS)/(0.16*pow(386.2, 3)), cs2(muB, muQ, muS))
+ax2.plot(1e-18*n_B(muB, muQ, muS)/(0.16*pow(197.3, 3)), n_B(muB, muQ, muS)/(muB*X_BB(muB, muQ, muS) + muS*X_SB(muB, muQ, muS) + muQ*X_QB(muB, muQ, muS)))
 ax2.set_ylabel('c_s^2')
 ax2.set_xlabel('n_B/n_sat')
-#ax2 = fig.add_subplot(projection='3d')
-#ax2.plot_surface(1e-6*mB, 1e-6*mQ, cs2(mB, mQ, muS))
-#ax2.set_zlabel('c_s^2')
-#ax2.set_ylabel('mu_Q(MeV)')
-#ax2.set_xlabel('mu_B(MeV)')
 plt.figure()
 ax3 = plt.axes()
-ax3.plot(1e-6*muB, n_B(muB, muQ, muS)/pow(386.2, 3))
+ax3.plot(1e-6*muB, 1e-18*n_B(muB, muQ, muS)/pow(197.3, 3))
 ax3.set_ylabel('n_B(1/fm^3)')
 ax3.set_xlabel('mu_B(MeV)')
 plt.figure()
 ax4 = plt.axes()
-ax4.plot(1e-6*muB, n_Q(muB, muQ, muS)/pow(386.2, 3))
+ax4.plot(1e-6*muB, 1e-18*n_Q(muB, muQ, muS)/pow(197.3, 3))
 ax4.set_ylabel('n_Q(1/fm^3)')
 ax4.set_xlabel('mu_B(MeV)')
 plt.figure()
@@ -116,4 +128,9 @@ ax5 = plt.axes()
 ax5.plot(1e-6*muB, n_Q(muB, muQ, muS)/n_B(muB, muQ, muS))
 ax5.set_ylabel('y_Q')
 ax5.set_xlabel('mu_B(MeV)')
+plt.show()
+ax6 = plt.axes()
+ax6.plot(1e-6*muB, 1e6*X_SB(muB, muQ, muS))
+ax6.set_ylabel('X_BB(1/MeV)')
+ax6.set_xlabel('mu_B(MeV)')
 plt.show()
